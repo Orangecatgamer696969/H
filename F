@@ -1,0 +1,357 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Orangecatgamer696969/J/refs/heads/main/Nss"))()
+local ZixyESP = loadstring(game:HttpGet('https://raw.githubusercontent.com/zixypy/zixyx/refs/heads/main/zixyesp.txt'))()
+local esp = ZixyESP.new()
+
+local UI = Library.new()
+UI:load()
+
+local plrs = game:GetService("Players")
+local lp = plrs.LocalPlayer
+local rs = game:GetService("RunService")
+local uis = game:GetService("UserInputService")
+local cam = workspace.CurrentCamera
+
+-- Aimbot settings
+local aimbotEnabled = false
+local fovSize = 200
+local fovColor = Color3.fromRGB(208, 240, 253)
+local aimbotTeamCheck = true
+local wallCheck = true
+local usePrediction = true
+local predictionValue = 0
+
+-- Drawing for FOV circle
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible = false
+fovCircle.Thickness = 1
+fovCircle.NumSides = 100
+fovCircle.Radius = fovSize
+fovCircle.Color = fovColor
+fovCircle.Filled = false
+
+-- Function to get screen position
+local function getScreenPos(part)
+    local vector, onScreen = cam:WorldToViewportPoint(part.Position)
+    return Vector2.new(vector.X, vector.Y), onScreen
+end
+
+-- Function to check if player is valid
+local function isValidTarget(plr)
+    if plr == lp or not plr.Character or not plr.Character:FindFirstChild("Humanoid") or plr.Character.Humanoid.Health <= 0 then
+        return false
+    end
+    if aimbotTeamCheck and plr.Team == lp.Team then
+        return false
+    end
+    if wallCheck then
+        local ray = Ray.new(cam.CFrame.Position, (plr.Character.Head.Position - cam.CFrame.Position).Unit * 500)
+        local hit, pos = workspace:FindPartOnRayWithIgnoreList(ray, {lp.Character})
+        if hit and hit:IsDescendantOf(plr.Character) then
+            return true
+        end
+        return false
+    end
+    return true
+end
+
+-- Function to find closest player in FOV
+local function findClosestInFOV()
+    local closest = nil
+    local minDist = fovSize
+    local fovPos
+    if uis.TouchEnabled then
+        -- Mobile: Center of the screen
+        local viewportSize = cam.ViewportSize
+        fovPos = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    else
+        -- PC: Follow mouse
+        fovPos = uis:GetMouseLocation()
+    end
+    
+    for _, plr in pairs(plrs:GetPlayers()) do
+        if isValidTarget(plr) then
+            local head = plr.Character.Head
+            local pos, onScreen = getScreenPos(head)
+            if onScreen then
+                local dist = (pos - mousePos).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    closest = plr
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function findClosestInFOV()
+    local closest = nil
+    local minDist = fovSize
+    local fovPos
+    if uis.TouchEnabled then
+        -- Mobile: Center of the screen
+        local viewportSize = cam.ViewportSize
+        fovPos = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    else
+        -- PC: Follow mouse
+        fovPos = uis:GetMouseLocation()
+    end
+    
+    for _, plr in pairs(plrs:GetPlayers()) do
+        if isValidTarget(plr) then
+            local head = plr.Character.Head
+            local pos, onScreen = getScreenPos(head)
+            if onScreen then
+                local dist = (pos - fovPos).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    closest = plr
+                end
+            end
+        end
+    end
+    return closest, fovPos
+end
+
+-- Aimbot logic
+rs.RenderStepped:Connect(function()
+    if aimbotEnabled then
+        fovCircle.Visible = true
+        fovCircle.Position = uis:GetMouseLocation()
+        fovCircle.Radius = fovSize
+        fovCircle.Color = fovColor
+        
+        local target = findClosestInFOV()
+        if target then
+            local headPos = target.Character.Head.Position
+            if usePrediction then
+                headPos = headPos + (target.Character.HumanoidRootPart.Velocity * predictionValue)
+            end
+            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, headPos)
+        end
+    else
+        fovCircle.Visible = false
+    end
+end)
+
+-- GUI
+local MainTab = UI:create_tab("Aimbot & ESP", "rbxassetid://90319103293063")
+
+-- Aimbot Module
+local AimbotModule = MainTab:create_module({
+    title = "Aimbot Controls",
+    description = "Configure aimbot settings",
+    section = "left",
+    flag = "aimbot_module",
+    callback = function(state)
+        aimbotEnabled = state
+        print("Aimbot:", state and "Enabled" or "Disabled")
+    end
+})
+
+-- Aimbot Team Check
+AimbotModule:create_checkbox({
+    title = "Team Check",
+    flag = "aimbot_team_check",
+    value = false,
+    callback = function(value)
+        aimbotTeamCheck = value
+        print("Aimbot Team Check:", value)
+    end
+})
+
+-- Wall Check
+AimbotModule:create_checkbox({
+    title = "Wall Check",
+    flag = "wall_check",
+    value = false,
+    callback = function(value)
+        wallCheck = value
+        print("Wall Check:", value)
+    end
+})
+
+-- Use Prediction
+AimbotModule:create_checkbox({
+    title = "Use Prediction",
+    flag = "use_prediction",
+    value = false,
+    callback = function(value)
+        usePrediction = value
+        print("Use Prediction:", value)
+    end
+})
+
+-- Prediction Value
+AimbotModule:create_slider({
+    title = "Prediction Value",
+    flag = "prediction_value",
+    minimum_value = 0,
+    maximum_value = 1,
+    value = 0,
+    round_number = false,
+    callback = function(value)
+        predictionValue = value
+        print("Prediction Value:", value)
+    end
+})
+
+-- FOV Size
+AimbotModule:create_slider({
+    title = "FOV Size",
+    flag = "fov_size",
+    minimum_value = 50,
+    maximum_value = 600,
+    value = 200,
+    round_number = true,
+    callback = function(value)
+        fovSize = value
+        print("FOV Size:", value)
+    end
+})
+
+-- ESP Module
+local ESPModule = MainTab:create_module({
+    title = "ESP Visuals",
+    description = "Configure ESP settings",
+    section = "right",
+    flag = "esp_module",
+    callback = function(state)
+        print("ESP Module:", state and "Enabled" or "Disabled")
+    end
+})
+
+-- Box ESP
+ESPModule:create_checkbox({
+    title = "Box ESP",
+    flag = "box_esp",
+    value = false,
+    callback = function(value)
+        if value then
+            esp:InitiateBox(Color3.fromRGB(208, 240, 253))
+        else
+            esp.State.BoxEnabled = false
+        end
+        print("Box ESP:", value)
+    end
+})
+
+-- Name ESP
+ESPModule:create_checkbox({
+    title = "Name ESP",
+    flag = "name_esp",
+    value = false,
+    callback = function(value)
+        esp:InitiateName(value)
+        print("Name ESP:", value)
+    end
+})
+
+-- Distance ESP
+ESPModule:create_checkbox({
+    title = "Distance ESP",
+    flag = "distance_esp",
+    value = false,
+    callback = function(value)
+        esp:InitiateDistance(value)
+        print("Distance ESP:", value)
+    end
+})
+
+-- Skeleton ESP
+ESPModule:create_checkbox({
+    title = "Skeleton ESP",
+    flag = "skeleton_esp",
+    value = false,
+    callback = function(value)
+        if value then
+            esp:InitiateSkeleton(Color3.fromRGB(208, 240, 253))
+        else
+            esp.State.SkeletonEnabled = false
+        end
+        print("Skeleton ESP:", value)
+    end
+})
+
+-- Health Text ESP
+ESPModule:create_checkbox({
+    title = "Health Text ESP",
+    flag = "health_text_esp",
+    value = false,
+    callback = function(value)
+        esp:InitiateHealthText(value)
+        print("Health Text ESP:", value)
+    end
+})
+
+-- Health Bar ESP
+ESPModule:create_checkbox({
+    title = "Health Bar ESP",
+    flag = "health_bar_esp",
+    value = false,
+    callback = function(value)
+        esp:InitiateHealthBar(value)
+        print("Health Bar ESP:", value)
+    end
+})
+
+-- Tracer ESP
+ESPModule:create_checkbox({
+    title = "Tracer ESP",
+    flag = "tracer_esp",
+    value = false,
+    callback = function(value)
+        if value then
+            esp:InitiateTracer(Color3.fromRGB(208, 240, 253), "Top Screen")
+        else
+            esp.State.TracerEnabled = false
+        end
+        print("Tracer ESP:", value)
+    end
+})
+
+-- Chams
+ESPModule:create_checkbox({
+    title = "Chams",
+    flag = "chams",
+    value = false,
+    callback = function(value)
+        if value then
+            esp:InitiateChams(Color3.fromRGB(208, 240, 253))
+        else
+            esp.State.ChamsEnabled = false
+        end
+        print("Chams:", value)
+    end
+})
+
+-- ESP Team Check
+ESPModule:create_checkbox({
+    title = "Team Check",
+    flag = "esp_team_check",
+    value = false,
+    callback = function(value)
+        esp:TeamCheck(value)
+        print("ESP Team Check:", value)
+    end
+})
+
+-- ESP Distance
+ESPModule:create_slider({
+    title = "ESP Distance",
+    flag = "esp_distance",
+    minimum_value = 100,
+    maximum_value = 1000,
+    value = 325,
+    round_number = true,
+    callback = function(value)
+        esp:SetDistance(value)
+        print("ESP Distance:", value)
+    end
+})
+
+-- Initialize ESP
+esp:Initialize()
